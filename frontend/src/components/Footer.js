@@ -1,6 +1,16 @@
+'use client';
+
 import React from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  // Hide the global footer when inside the SaaS dashboard view frame
+  if (pathname && pathname.startsWith('/dashboard')) {
+    return null;
+  }
+
   return (
     <footer className="border-t border-gray-900 bg-gray-950 py-8 mt-auto">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center sm:text-left sm:flex sm:items-center sm:justify-between">

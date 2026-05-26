@@ -8,6 +8,11 @@ import { RiRobot2Line, RiCompass3Line, RiDashboardLine } from 'react-icons/ri';
 export default function Navbar() {
   const pathname = usePathname();
 
+  // Hide the global navigation bar when inside the SaaS dashboard view frame
+  if (pathname && pathname.startsWith('/dashboard')) {
+    return null;
+  }
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-gray-800 bg-gray-950/80 backdrop-blur-md">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
