@@ -9,7 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000 // 15 seconds request timeout
+  timeout: 60000 // 60 seconds requests timeout because Playwright browser crawls take longer
 });
 
 /**
@@ -29,10 +29,6 @@ const checkBackendHealth = async () => {
 /**
  * Triggers a brand discoverability check on the Express server.
  * @param {Object} scanParams - Business scanning query parameters
- * @param {string} scanParams.businessName - Brand name to audit
- * @param {string} scanParams.industry - Industry vertical
- * @param {string} scanParams.competitors - List of competitor names (comma separated)
- * @returns {Promise<Object>} Discoverability report indices
  */
 const scanBusiness = async (scanParams) => {
   try {
@@ -44,9 +40,29 @@ const scanBusiness = async (scanParams) => {
   }
 };
 
+/**
+ * Phase 2 Core - Triggers automated Perplexity Playwright engine analysis.
+ * @param {Object} queryParams - Dynamic parameters
+ * @param {string} queryParams.business - Target company brand name
+ * @param {string} queryParams.category - Business vertical
+ * @param {string} queryParams.city - Geographical city
+ * @returns {Promise<Object>} Comprehensive Scraper results & Frequency data
+ */
+const executeQueryEngine = async (queryParams) => {
+  try {
+    const response = await api.post('/score/calculate', queryParams);
+    return response.data;
+  } catch (error) {
+    console.error('AI scoring engine calculation failed:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Failed to complete visibility scoring calculations.');
+  }
+};
+
+
 const apiService = {
   checkBackendHealth,
-  scanBusiness
+  scanBusiness,
+  executeQueryEngine
 };
 
 export default apiService;
