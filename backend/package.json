@@ -1,0 +1,30 @@
+{
+  "name": "ai-discoverability-platform-backend",
+  "version": "1.0.0",
+  "description": "Backend services for the AI Discoverability Platform, including Playwright scraping and visibility scoring.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "playwright:install": "npx playwright install chromium",
+    "test-playwright": "node playwright/test-google.js"
+  },
+  "keywords": [
+    "ai",
+    "discoverability",
+    "express",
+    "playwright"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "playwright": "^1.44.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.3"
+  }
+}
