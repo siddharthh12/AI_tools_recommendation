@@ -59,10 +59,42 @@ const executeQueryEngine = async (queryParams) => {
 };
 
 
+/**
+ * Phase 4 Core - Triggers competitor discoverability analysis.
+ * @param {Object} queryParams - Dynamic parameters
+ */
+const executeCompetitorAnalysis = async (queryParams) => {
+  try {
+    const response = await api.post('/competitors/analyze', queryParams);
+    return response.data;
+  } catch (error) {
+    console.error('AI competitor analysis failed:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Failed to complete competitor analysis.');
+  }
+};
+
+/**
+ * Phase 5 Core - Generates prioritized optimization recommendations.
+ * @param {Object} queryParams - Dynamic parameters
+ */
+const generateRecommendations = async (queryParams) => {
+  try {
+    const response = await api.post('/recommendations/generate', queryParams);
+    return response.data;
+  } catch (error) {
+    console.error('AI recommendation generation failed:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Failed to generate recommendations.');
+  }
+};
+
 const apiService = {
   checkBackendHealth,
   scanBusiness,
-  executeQueryEngine
+  executeQueryEngine,
+  executeCompetitorAnalysis,
+  generateRecommendations
 };
 
 export default apiService;
+
+

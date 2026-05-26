@@ -11,6 +11,10 @@ const config = require('./config');
 const logger = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
 const apiRoutes = require('./routes/api');
+const queryRoutes = require('./routes/queryRoutes');
+const scoreRoutes = require('./routes/scoreRoutes');
+const competitorRoutes = require('./routes/competitorRoutes');
+const recommendationRoutes = require('./routes/recommendationRoutes');
 
 const app = express();
 
@@ -31,6 +35,14 @@ app.use(logger);
 
 // 2. REGISTER ROUTES
 app.use('/api', apiRoutes);
+app.use('/api/query', queryRoutes);
+app.use('/api/score', scoreRoutes);
+app.use('/api/competitors', competitorRoutes);
+app.use('/api/recommendations', recommendationRoutes);
+
+
+
+
 
 // Root route placeholder message
 app.get('/', (req, res) => {
