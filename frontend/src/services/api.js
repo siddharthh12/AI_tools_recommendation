@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Load backend API URL from environment variables
+// Load backend API URL from environment variables, fallback to port 5000 in dev
 const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
 
 // Create configured Axios instance
@@ -9,7 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000 // 60 seconds requests timeout because Playwright browser crawls take longer
+  timeout: 120000 // 120s timeout limit since Playwright headful crawls search multiple queries sequentially
 });
 
 /**
@@ -27,74 +27,26 @@ const checkBackendHealth = async () => {
 };
 
 /**
- * Triggers a brand discoverability check on the Express server.
- * @param {Object} scanParams - Business scanning query parameters
+ * Triggers the live Google search competitor discovery scan.
+ * @param {Object} searchCoords - The brand, category, and location coordinates
+ * @param {string} searchCoords.brand - Brand name
+ * @param {string} searchCoords.category - Category vertical
+ * @param {string} searchCoords.location - Location string
+ * @returns {Promise<Object>} The queries, competitor list, and session logs
  */
-const scanBusiness = async (scanParams) => {
+const discoverCompetitors = async (searchCoords) => {
   try {
-    const response = await api.post('/scan', scanParams);
+    const response = await api.post('/search/competitors', searchCoords);
     return response.data;
   } catch (error) {
-    console.error('AI brand discoverability scan failed:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.message || 'Failed to complete brand discoverability scan.');
-  }
-};
-
-/**
- * Phase 2 Core - Triggers automated Perplexity Playwright engine analysis.
- * @param {Object} queryParams - Dynamic parameters
- * @param {string} queryParams.business - Target company brand name
- * @param {string} queryParams.category - Business vertical
- * @param {string} queryParams.city - Geographical city
- * @returns {Promise<Object>} Comprehensive Scraper results & Frequency data
- */
-const executeQueryEngine = async (queryParams) => {
-  try {
-    const response = await api.post('/score/calculate', queryParams);
-    return response.data;
-  } catch (error) {
-    console.error('AI scoring engine calculation failed:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.message || 'Failed to complete visibility scoring calculations.');
-  }
-};
-
-
-/**
- * Phase 4 Core - Triggers competitor discoverability analysis.
- * @param {Object} queryParams - Dynamic parameters
- */
-const executeCompetitorAnalysis = async (queryParams) => {
-  try {
-    const response = await api.post('/competitors/analyze', queryParams);
-    return response.data;
-  } catch (error) {
-    console.error('AI competitor analysis failed:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.message || 'Failed to complete competitor analysis.');
-  }
-};
-
-/**
- * Phase 5 Core - Generates prioritized optimization recommendations.
- * @param {Object} queryParams - Dynamic parameters
- */
-const generateRecommendations = async (queryParams) => {
-  try {
-    const response = await api.post('/recommendations/generate', queryParams);
-    return response.data;
-  } catch (error) {
-    console.error('AI recommendation generation failed:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.message || 'Failed to generate recommendations.');
+    console.error('Competitor discovery scan failed:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Failed to complete competitor discovery scan.');
   }
 };
 
 const apiService = {
   checkBackendHealth,
-  scanBusiness,
-  executeQueryEngine,
-  executeCompetitorAnalysis,
-  generateRecommendations
+  discoverCompetitors
 };
 
 export default apiService;
-
-

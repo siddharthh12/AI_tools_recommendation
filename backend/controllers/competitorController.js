@@ -1,102 +1,99 @@
 /**
- * Competitor Analysis Controller
+ * Real Competitor Controller
  * 
- * Coordinates the full competitor audit requests:
- * 1. Validates body parameters (Business, Category, City).
- * 2. Compiles queries and triggers automated crawling/scraping runs.
- * 3. Extracts listed competitor names, excluding the target brand.
- * 4. Compiles visibility metrics (reviews, authority, Reddit, FAQ) for both.
- * 5. Contrasts factors to find weaknesses, compiling human-readable reasons
- *    and actionable optimization recommendations.
+ * Orchestrates the Playwright real-time competitor discovery pipeline:
+ * 1. Validates input body coordinates (brand, category, location).
+ * 2. Initializes the session logger.
+ * 3. Generates high-fidelity localized Google search queries.
+ * 4. Iteratively launches Playwright Chromium to crawl Google Search.
+ * 5. Extracts competitors and eliminates paid ads or general directory sites.
+ * 6. Deduplicates and sanitizes business name entries.
+ * 7. Returns clean competitors, queries, and browser logs back to the frontend.
  */
 
-const { generateQueries } = require('../services/queryGeneratorService');
-const { runPerplexity } = require('../playwright/perplexityRunner');
-const { extractBusinesses } = require('../services/extractBusinesses' === 'undefined' ? '../services/extractBusinessService' : '../services/extractBusinessService');
-const { compileFrequencyData } = require('../services/frequencyService');
-const { extractCompetitors } = require('../competitor-analysis/competitorAnalyzer');
-const { getBrandMetrics } = require('../services/mockCompetitorData');
-const { analyzeCompetitors } = require('../competitor-analysis/mainCompetitorEngine');
+const { generateQueries } = require('../search/queryGenerator');
+const { runGoogleSearch, runGoogleSearches } = require('../search/googleSearchRunner');
+const { extractCompetitors } = require('../search/competitorExtractor');
+const { cleanCompetitorsData } = require('../search/dataCleaner');
+const logger = require('../search/searchLogger');
 
 /**
- * Executes a live competitor discoverability audit.
- * POST /api/competitors/analyze
+ * Handles real competitor discovery crawls.
+ * POST /api/search/competitors
  */
-const runCompetitorAnalysis = async (req, res, next) => {
-  try {
-    const { business, category, city } = req.body;
+const getCompetitors = async (req, res, next) => {
+  // 1. Reset logger for a fresh session
+  logger.reset();
 
-    // 1. INPUT VALIDATION
-    if (!business || !category || !city) {
+  try {
+    const { brand, category, location } = req.body;
+
+    logger.log('Controller', 'Received new competitor discovery request.');
+
+    // 2. Validate input parameters
+    if (!brand || !category || !location) {
+      logger.log('Controller', 'Validation failed: Missing brand, category, or location.', 'error');
       return res.status(400).json({
         success: false,
-        message: 'Invalid parameters. Please supply: business, category, and city.'
+        message: 'Invalid parameters. Please supply: brand, category, and location.'
       });
     }
 
-    console.log(`[Competitor Controller]: Initiating comparison audit for: "${business}"`);
+    logger.log('Controller', `Scan coordinates - Brand: "${brand}", Category: "${category}", Location: "${location}"`);
 
-    // 2. QUERY GENERATION & CRAWLS
-    const queries = generateQueries(category, city);
-    const queryResults = [];
+    // 3. Generate Search Queries
+    const queries = generateQueries({ brand, category, location });
+    logger.setQueries(queries);
 
-    // Loop queries sequentially (Playwright anti-bot fallback enabled)
-    for (const query of queries) {
-      try {
-        const rawResponse = await runPerplexity(query, business, category, city);
-        const parsed = extractBusinesses(rawResponse);
-        queryResults.push({ query, results: parsed, rawResponse });
-      } catch (err) {
-        console.error(`[Competitor Controller]: Crawl failed for "${query}":`, err.message);
-        queryResults.push({ query, results: [], rawResponse: `Crawl error: ${err.message}` });
-      }
+    const allRawListings = [];
+
+    // 4. Execute Playwright scrapes sequentially in a single unified browser session
+    try {
+      const crawlResults = await runGoogleSearches(queries);
+      allRawListings.push(...crawlResults);
+    } catch (scrapeError) {
+      logger.log('Controller', `Session crawl failed: ${scrapeError.message}`, 'error');
     }
 
-    // 3. COMPILE FREQUENCY DATA
-    const frequencyData = compileFrequencyData(queryResults);
+    // 5. Extract Competitors (filters out ads, directory sites, and user's own business)
+    const rawCompetitors = extractCompetitors(allRawListings, brand, category, location);
 
-    // 4. IDENTIFY UNIQUE COMPETITORS
-    const rankedCompetitors = extractCompetitors(frequencyData, business);
-    console.log(`[Competitor Controller]: Found ${rankedCompetitors.length} unique competitors:`, rankedCompetitors.map(c => c.name));
+    // 6. Clean and Deduplicate data
+    const cleanCompetitors = cleanCompetitorsData(rawCompetitors, category, location);
 
-    // 5. COMPILE TARGET BRAND METRICS PROFILE
-    const targetKey = Object.keys(frequencyData).find(
-      k => k.toLowerCase() === business.toLowerCase().trim()
-    );
-    const targetMentions = targetKey ? frequencyData[targetKey].mentions : 0;
-    const targetAvgPos = targetKey ? frequencyData[targetKey].averagePosition : 0;
+    logger.log('Controller', `Successfully processed discovery pipeline. Returning ${cleanCompetitors.length} competitors.`);
 
-    const targetProfile = {
-      ...getBrandMetrics(business),
-      mentions: targetMentions,
-      averagePosition: targetAvgPos
-    };
-
-    // 6. COMPILE COMPETITORS METRICS PROFILE LIST
-    const competitorProfilesList = rankedCompetitors.map(comp => {
-      return {
-        ...getBrandMetrics(comp.name),
-        mentions: comp.mentions,
-        averagePosition: comp.averagePosition
-      };
-    });
-
-    // 7. EXECUTE COMPARATIVE ENGINE (COMPLIANT WITH INSTRUCTIONS)
-    const competitorAnalysisResults = analyzeCompetitors(targetProfile, competitorProfilesList);
-
-    // 8. RETURN STRUCTURED REPORT
+    // 7. Structure success response with expected payload and logs
     res.status(200).json({
       success: true,
-      targetBusiness: business,
-      topCompetitors: competitorAnalysisResults
+      queries: queries,
+      competitors: cleanCompetitors,
+      debug: logger.getSessionData(),
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('[Competitor Controller Error]: Competitor analysis failed:', error);
-    next(error);
+    logger.log('Controller', `Critical pipeline failure: ${error.message}`, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: error.message || 'An unexpected failure occurred during competitor extraction.',
+      debug: logger.getSessionData()
+    });
   }
 };
 
+/**
+ * Legacy router placeholder matching previous signature to prevent routing crashes.
+ */
+const runCompetitorAnalysis = async (req, res, next) => {
+  // Redirect legacy calls to the clean search engine
+  req.body.brand = req.body.business; // Map old 'business' param to 'brand'
+  req.body.location = req.body.city;   // Map old 'city' param to 'location'
+  return getCompetitors(req, res, next);
+};
+
 module.exports = {
+  getCompetitors,
   runCompetitorAnalysis
 };

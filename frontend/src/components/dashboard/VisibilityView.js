@@ -17,14 +17,20 @@ export default function VisibilityView() {
     <div className="space-y-10 py-2">
       
       {/* 1. Header description */}
-      <div className="space-y-1">
-        <div className="inline-flex items-center space-x-2 text-indigo-400">
-          <BarChart3 className="h-4.5 w-4.5" />
-          <h3 className="text-xs font-black uppercase tracking-wider">AI Discoverability Index Scorecard</h3>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="inline-flex items-center space-x-2 text-indigo-400">
+            <BarChart3 className="h-4.5 w-4.5" />
+            <h3 className="text-xs font-black uppercase tracking-wider">AI Discoverability Index Scorecard</h3>
+          </div>
+          <p className="text-[11px] text-gray-500 font-semibold">
+            Comprehensive score calculations for <strong>{businessName}</strong> based on live Playwright engine crawls.
+          </p>
         </div>
-        <p className="text-[11px] text-gray-500 font-semibold">
-          Comprehensive score calculations for <strong>{businessName}</strong> based on live Playwright engine crawls.
-        </p>
+        <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider w-fit select-none self-start sm:self-center">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Data sourced from live Google search</span>
+        </div>
       </div>
 
       {/* 2. Visual Scores Panels grid */}

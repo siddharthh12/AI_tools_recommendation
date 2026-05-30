@@ -11,24 +11,28 @@
  */
 
 const { detectWeaknesses } = require('./weaknessDetector');
-const { mapToRecommendations } = require('./recommendationMapper');
+const { calculateOverallScore } = require('../scoring/scoreCalculator');
+const { generateAiRecommendations } = require('../ai/recommendationGenerator');
 
 /**
  * Generates prioritized discoverability recommendations.
  * @param {Object} stats - Brand discoverability metrics
- * @returns {Array<Object>} Sorted list of structured recommendations
+ * @returns {Promise<Array<Object>>} Sorted list of structured recommendations
  */
-const generateRecommendations = (stats) => {
+const generateRecommendations = async (stats) => {
   if (!stats) return [];
 
   // 1. Detect raw search weaknesses
   const weaknesses = detectWeaknesses(stats);
   console.log(`[Recommendation Engine]: Detected ${weaknesses.length} discoverability gaps.`);
 
-  // 2. Map weaknesses to structured recommendations
-  const recommendations = mapToRecommendations(weaknesses);
+  // 2. Calculate overall score (fully deterministic)
+  const overallScore = calculateOverallScore(stats);
 
-  // 3. Sort recommendations by priority (HIGH first, then MEDIUM, then LOW)
+  // 3. Generate AI recommendations (falls back to rules automatically)
+  const recommendations = await generateAiRecommendations(stats, weaknesses, overallScore);
+
+  // 4. Sort recommendations by priority (HIGH first, then MEDIUM, then LOW)
   const priorityWeights = { HIGH: 3, MEDIUM: 2, LOW: 1 };
 
   return recommendations.sort((a, b) => {

@@ -20,9 +20,9 @@ const app = express();
 
 // 1. GLOBAL MIDDLEWARES
 
-// Enable CORS with dynamic settings matching the frontend configuration
+// Enable CORS allowing request origin dynamically to prevent local development port mismatches
 app.use(cors({
-  origin: config.FRONTEND_URL,
+  origin: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
 }));
@@ -68,3 +68,5 @@ app.listen(config.PORT, () => {
   console.log(`  Access URL  : http://localhost:${config.PORT}`);
   console.log(`=================================================`);
 });
+// Server triggered reload
+

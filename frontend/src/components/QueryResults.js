@@ -21,7 +21,7 @@ export default function QueryResults({ queries, targetBusiness }) {
     <div className="space-y-4">
       <h3 className="text-lg font-bold text-white tracking-wide flex items-center space-x-2">
         <RiQuestionnaireLine className="h-5 w-5 text-indigo-400" />
-        <span>Scraper Crawl Details</span>
+        <span>Google Search Scraper Log</span>
       </h3>
 
       <div className="space-y-3">
@@ -29,7 +29,7 @@ export default function QueryResults({ queries, targetBusiness }) {
           const isOpen = openAccordion === idx;
           const totalFound = qRun.results ? qRun.results.length : 0;
           const targetFound = qRun.results?.some(
-            r => r.name.toLowerCase() === targetBusiness.toLowerCase()
+            r => r.name.trim().toLowerCase() === targetBusiness.trim().toLowerCase()
           );
 
           return (
@@ -96,7 +96,7 @@ export default function QueryResults({ queries, targetBusiness }) {
                       {totalFound > 0 ? (
                         <div className="divide-y divide-gray-900 bg-gray-950/40 rounded-xl border border-gray-900 overflow-hidden">
                           {qRun.results.map((biz) => {
-                            const isTarget = biz.name.toLowerCase() === targetBusiness.toLowerCase();
+                            const isTarget = biz.name.trim().toLowerCase() === targetBusiness.trim().toLowerCase();
                             return (
                               <div 
                                 key={biz.name} 
@@ -128,7 +128,7 @@ export default function QueryResults({ queries, targetBusiness }) {
                     <div className="space-y-3.5">
                       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center space-x-1.5">
                         <RiFileList3Line className="h-4 w-4 text-indigo-400" />
-                        <span>Raw AI Answer Text</span>
+                        <span>Live Scraper Logs</span>
                       </h4>
 
                       <div className="w-full bg-gray-950 border border-gray-900 rounded-xl p-3.5 h-[160px] overflow-y-auto text-xs text-gray-400 font-mono leading-relaxed select-text shadow-inner">

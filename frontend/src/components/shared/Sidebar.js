@@ -4,10 +4,7 @@ import React from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import { 
   Compass, 
-  BarChart3, 
   Users, 
-  Lightbulb, 
-  LineChart, 
   ChevronLeft, 
   ChevronRight,
   Database,
@@ -24,13 +21,10 @@ export default function Sidebar() {
     businessName
   } = useDashboard();
 
-  // Navigation Items Catalog
+  // Navigation Items Catalog - Paused other tabs to focus entirely on Real Competitor discovery
   const navItems = [
     { id: 'home', label: 'Crawl Cockpit', icon: Compass },
-    { id: 'visibility', label: 'AI Visibility', icon: BarChart3, requiresReport: true },
-    { id: 'competitors', label: 'Competitor Gaps', icon: Users, requiresReport: true },
-    { id: 'recommendations', label: 'Optimization Playbook', icon: Lightbulb, requiresReport: true },
-    { id: 'analytics', label: 'History & Trends', icon: LineChart, requiresReport: true }
+    { id: 'competitors', label: 'Real Competitors', icon: Users, requiresReport: true }
   ];
 
   const hasActiveReport = status === 'success';
@@ -126,13 +120,13 @@ export default function Sidebar() {
                 </div>
                 <div className="text-[9px] text-emerald-400 font-semibold tracking-wide flex items-center space-x-1">
                   <Radio className="h-2.5 w-2.5 animate-pulse" />
-                  <span>Report Loaded</span>
+                  <span>Crawl Complete</span>
                 </div>
               </div>
             ) : (
               <div className="text-[9px] text-gray-500 font-semibold tracking-wide flex items-center space-x-1">
                 <Database className="h-2.5 w-2.5" />
-                <span>Ready for Audits</span>
+                <span>Ready for Crawls</span>
               </div>
             )}
           </div>

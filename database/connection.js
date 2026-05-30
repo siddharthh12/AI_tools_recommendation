@@ -11,7 +11,12 @@
  */
 
 // require('dotenv').config({ path: '../backend/.env' }); // Adjust path if running backend standalone
-const { createClient } = require('@supabase/supabase-js');
+let createClient = null;
+try {
+  createClient = require('@supabase/supabase-js').createClient;
+} catch (loadErr) {
+  console.warn('[Database Connection Warning]: @supabase/supabase-js package is not installed. Database actions will operate in local fallback JSON mode.');
+}
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://placeholder-url.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'placeholder-anon-key';
@@ -19,12 +24,12 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || 'placeholder-anon-key';
 let supabase = null;
 
 try {
-  if (supabaseUrl && supabaseKey && supabaseUrl !== 'https://placeholder-url.supabase.co') {
+  if (createClient && supabaseUrl && supabaseKey && supabaseUrl !== 'https://placeholder-url.supabase.co') {
     // Initialize Supabase client
     supabase = createClient(supabaseUrl, supabaseKey);
     console.log('[Supabase]: Client successfully configured.');
   } else {
-    console.log('[Supabase]: Configuration placeholders detected. Client not loaded.');
+    console.log('[Supabase]: Configuration placeholders or missing dependencies detected. Client not loaded.');
   }
 } catch (error) {
   console.error('[Supabase]: Failed to configure database client:', error.message);

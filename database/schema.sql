@@ -55,9 +55,25 @@ CREATE TABLE IF NOT EXISTS competitors (
     UNIQUE (business_id, competitor_name)
 );
 
+-- 5. REAL COMPETITOR RECORDS TABLE
+-- Stores real competitors discovered from live Google search crawls.
+CREATE TABLE IF NOT EXISTS real_competitor_records (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    competitor_name VARCHAR(255) NOT NULL,
+    website VARCHAR(255),
+    query_source VARCHAR(255) DEFAULT 'Google Search Organic / Maps',
+    ranking INT,
+    ai_mention_frequency INT DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexing for lookup optimizations
 CREATE INDEX IF NOT EXISTS idx_businesses_user_id ON businesses(user_id);
 CREATE INDEX IF NOT EXISTS idx_visibility_reports_business_id ON visibility_reports(business_id);
+CREATE INDEX IF NOT EXISTS idx_real_competitor_records_business ON real_competitor_records(business_name);
 CREATE INDEX IF NOT EXISTS idx_competitors_business_id ON competitors(business_id);
 
 -- Simple trigger function to automate updating 'updated_at' columns on modification

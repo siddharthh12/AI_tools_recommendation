@@ -1,22 +1,23 @@
 /**
  * AI Query Engine Controller
  * 
- * Orchestrates the complete discoverability analysis workflow:
+ * Orchestrates the complete discoverability analysis workflow using real search:
  * 1. Validates business input parameters (Business Name, Category, City).
- * 2. Compiles dynamic search queries using templates.
- * 3. Triggers Playwright scraper runner to query Perplexity AI.
- * 4. Parses list names and citations from text response blocks.
- * 5. Aggregates metrics (mention frequency, average rank position).
+ * 2. Compiles dynamic search queries using the new builder.
+ * 3. Triggers Google Playwright Scraper to execute live crawls.
+ * 4. Parses physical business listings and filters out directories.
+ * 5. Assess conversational AI mention indexes across brands.
  * 6. Returns a structured JSON payload to the frontend.
  */
 
-const { generateQueries } = require('../services/queryGeneratorService');
-const { runPerplexity } = require('../playwright/perplexityRunner');
-const { extractBusinesses } = require('../services/extractBusinessService');
-const { compileFrequencyData } = require('../services/frequencyService');
+const { buildQueries } = require('../search/searchQueryBuilder');
+const { runGoogleSearch } = require('../search/googleSearchRunner');
+const { parseSearchResults } = require('../search/searchParser');
+const { extractCompetitors } = require('../search/competitorExtractor');
+const { checkAiVisibility } = require('../services/aiVisibilityService');
 
 /**
- * Executes dynamic query runs and returns aggregated analytics.
+ * Executes live query runs and returns aggregated analytics.
  * POST /api/query/run
  */
 const runQueryEngine = async (req, res, next) => {
@@ -34,44 +35,49 @@ const runQueryEngine = async (req, res, next) => {
     console.log(`[Query Engine Controller]: Initiating brand audit session for: "${business}"`);
     
     // 2. QUERY GENERATION
-    const queries = generateQueries(category, city);
-    console.log(`[Query Engine Controller]: Successfully generated ${queries.length} query variations:`, queries);
+    const queries = buildQueries({ business, category, city });
+    const allSearchRawResults = [];
+    const queryResultsLog = [];
 
-    const queryResults = [];
+    // 3. EXECUTE PLAYWRIGHT CRAWLER RUNS (IN PARALLEL)
+    await Promise.all(
+      queries.map(async (query) => {
+        try {
+          const rawItems = await runGoogleSearch(query, category, city);
+          allSearchRawResults.push(...rawItems);
+          
+          queryResultsLog.push({
+            query: query,
+            results: rawItems.map(item => ({ name: item.title, position: item.rank })),
+            rawResponse: `Live Google Search Scrape complete. Discovered ${rawItems.length} active physical listings.`
+          });
+        } catch (runErr) {
+          console.error(`[Query Engine Controller]: Individual query execution failed for "${query}":`, runErr.message);
+          queryResultsLog.push({
+            query: query,
+            results: [],
+            rawResponse: `Google scrape failed: ${runErr.message}`
+          });
+        }
+      })
+    );
 
-    // 3. EXECUTE PLAYWRIGHT CRAWLER RUNS (SEQUENTIAL)
-    for (const query of queries) {
-      try {
-        // Run Playwright crawler for Perplexity search (incorporates Turnstile fallback)
-        const rawResponseText = await runPerplexity(query, business, category, city);
+    // 4. PARSE RESULTS
+    const cleanDiscoveredListings = parseSearchResults(allSearchRawResults);
 
-        // 4. PARSE MENTIONS & POSITIONS FROM RAW TEXT
-        const parsedResults = extractBusinesses(rawResponseText);
+    // 5. EXTRACT COMPETITORS FOR AI VISIBILITY AUDIT
+    const topCompetitors = extractCompetitors(cleanDiscoveredListings, business);
 
-        queryResults.push({
-          query: query,
-          results: parsedResults,
-          rawResponse: rawResponseText // Return raw response for dashboard visual transparency/debugging
-        });
-      } catch (runErr) {
-        console.error(`[Query Engine Controller]: Individual query execution failed for "${query}":`, runErr.message);
-        // Include empty result rather than failing the whole scanning request
-        queryResults.push({
-          query: query,
-          results: [],
-          rawResponse: `Query execution failed: ${runErr.message}`
-        });
-      }
-    }
+    // 6. RUN AI VISIBILITY ASSESSMENT
+    const aiVisibilityBreakdown = await checkAiVisibility(business, category, city, topCompetitors, cleanDiscoveredListings);
 
-    // 5. AGGREGATE FREQUENCY & POSITIONS METRICS
-    const aggregatedFrequency = compileFrequencyData(queryResults);
-
-    // 6. DELIVER FINAL STRUCTURED JSON RESPONSE
+    // 7. DELIVER FINAL STRUCTURED JSON RESPONSE
     res.status(200).json({
       success: true,
-      queries: queryResults,
-      frequencyData: aggregatedFrequency
+      queries: queryResultsLog,
+      frequencyData: aiVisibilityBreakdown,
+      sourcedFromGoogle: true,
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {

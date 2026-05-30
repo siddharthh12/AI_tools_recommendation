@@ -6,10 +6,10 @@ import apiService from '../services/api';
 const DashboardContext = createContext();
 
 export function DashboardProvider({ children }) {
-  // Navigation active tab: 'home' | 'visibility' | 'competitors' | 'recommendations' | 'analytics'
+  // Navigation active tab: 'home' | 'competitors'
   const [activeSection, setActiveSection] = useState('home');
 
-  // Active search/audit coordinates
+  // Active search coordinates
   const [businessName, setBusinessName] = useState('');
   const [category, setCategory] = useState('');
   const [city, setCity] = useState('');
@@ -18,15 +18,15 @@ export function DashboardProvider({ children }) {
   const [status, setStatus] = useState('idle'); // idle | scanning | success | error
   const [errorMsg, setErrorMsg] = useState('');
 
-  // API Reports results
-  const [report, setReport] = useState(null);       // Visibility Score Report
-  const [compReport, setCompReport] = useState(null); // Competitors Analysis Report
-  const [recReport, setRecReport] = useState(null);   // Prioritized Recommendations Report
+  // Results states
+  const [competitors, setCompetitors] = useState([]);
+  const [queries, setQueries] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [browserStatus, setBrowserStatus] = useState('idle');
 
-  // Search Audit History Recalls (Prefilled with realistic startup demos)
+  // Search Audit History Recalls (Prefilled with realistic gym startup coordinates)
   const [searchHistory, setSearchHistory] = useState([
-    { business: "Gold's Gym", category: "Gym", city: "Mumbai" },
-    { business: "Initech Café", category: "Café", city: "Bangalore" }
+    { business: "Be Strong Gym", category: "Gym", city: "Vikhroli, Mumbai" }
   ]);
 
   // Sidebar Layout Collapsed state
@@ -63,7 +63,7 @@ export function DashboardProvider({ children }) {
     }
   };
 
-  // Triggers unified audit scan concurrently
+  // Triggers unified Playwright competitor search scan
   const triggerAuditScan = async (searchCoords) => {
     const { business, category: cat, city: ct } = searchCoords;
     if (!business || !cat || !ct) return;
@@ -75,26 +75,31 @@ export function DashboardProvider({ children }) {
 
     setStatus('scanning');
     setErrorMsg('');
-    setReport(null);
-    setCompReport(null);
-    setRecReport(null);
+    setCompetitors([]);
+    setQueries([]);
+    setLogs([]);
+    setBrowserStatus('launching');
 
     try {
-      // Fetch scoring, competitor, and recommendations analysis concurrently
-      const [scoreRes, compRes, recRes] = await Promise.all([
-        apiService.executeQueryEngine({ business, category: cat, city: ct }),
-        apiService.executeCompetitorAnalysis({ business, category: cat, city: ct }),
-        apiService.generateRecommendations({ business, category: cat, city: ct })
-      ]);
+      console.log(`[Dashboard Context] Dispatching discovery search coordinate scan...`);
+      const response = await apiService.discoverCompetitors({
+        brand: business,
+        category: cat,
+        location: ct
+      });
 
-      if (scoreRes.success && compRes.success && recRes.success) {
-        setReport(scoreRes);
-        setCompReport(compRes);
-        setRecReport(recRes);
+      if (response.success) {
+        setCompetitors(response.competitors);
+        setQueries(response.queries);
+        if (response.debug) {
+          setLogs(response.debug.logs || []);
+          setBrowserStatus(response.debug.browserStatus || 'done');
+        }
+        
         setStatus('success');
         
-        // Switch viewport focus automatically to Results page
-        setActiveSection('visibility');
+        // Switch viewport focus automatically to Competitors Results tab
+        setActiveSection('competitors');
 
         // Append search target to recent history
         const auditRecord = { business, category: cat, city: ct };
@@ -110,12 +115,12 @@ export function DashboardProvider({ children }) {
           return nextHistory;
         });
       } else {
-        throw new Error('Crawlers failed to return structured analytical tables.');
+        throw new Error(response.message || 'Scraper failed to return competitor listings.');
       }
     } catch (err) {
       console.error('[DashboardState Provider Error]:', err.message);
       setErrorMsg(
-        err.message || 'Audits timed out. Check that backend server is listening on port 5000.'
+        err.message || 'Competitor discovery failed. Please ensure the backend server is running on port 5000.'
       );
       setStatus('error');
     }
@@ -124,9 +129,9 @@ export function DashboardProvider({ children }) {
   // Resets search targets and active view panels
   const clearAuditScan = () => {
     setStatus('idle');
-    setReport(null);
-    setCompReport(null);
-    setRecReport(null);
+    setCompetitors([]);
+    setQueries([]);
+    setLogs([]);
     setBusinessName('');
     setCategory('');
     setCity('');
@@ -148,9 +153,10 @@ export function DashboardProvider({ children }) {
         setStatus,
         errorMsg,
         setErrorMsg,
-        report,
-        compReport,
-        recReport,
+        competitors,
+        queries,
+        logs,
+        browserStatus,
         searchHistory,
         isSidebarCollapsed,
         setIsSidebarCollapsed,

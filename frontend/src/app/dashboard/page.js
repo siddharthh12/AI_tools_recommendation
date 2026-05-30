@@ -3,21 +3,16 @@
 import React from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import SearchCockpit from '../../components/dashboard/SearchCockpit';
-import VisibilityView from '../../components/dashboard/VisibilityView';
 import CompetitorView from '../../components/competitors/CompetitorView';
-import RecommendationsView from '../../components/recommendations/RecommendationsView';
-import AnalyticsView from '../../components/analytics/AnalyticsView';
 import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
-import EmptyResults from '../../components/ui/EmptyResults';
-import { ShieldAlert, RefreshCw, X } from 'lucide-react';
+import { ShieldAlert, X } from 'lucide-react';
 
 export default function Dashboard() {
   const { 
     activeSection, 
     status, 
     errorMsg, 
-    clearAuditScan,
-    triggerAuditScan
+    clearAuditScan
   } = useDashboard();
 
   // 1. Loading scanner active screen
@@ -60,21 +55,9 @@ export default function Dashboard() {
     case 'home':
       return <SearchCockpit />;
       
-    case 'visibility':
-      if (status !== 'success') return <EmptyResults onQuickCtaClick={triggerAuditScan} />;
-      return <VisibilityView />;
-      
     case 'competitors':
-      if (status !== 'success') return <EmptyResults onQuickCtaClick={triggerAuditScan} />;
+      if (status !== 'success') return <SearchCockpit />;
       return <CompetitorView />;
-      
-    case 'recommendations':
-      if (status !== 'success') return <EmptyResults onQuickCtaClick={triggerAuditScan} />;
-      return <RecommendationsView />;
-      
-    case 'analytics':
-      if (status !== 'success') return <EmptyResults onQuickCtaClick={triggerAuditScan} />;
-      return <AnalyticsView />;
       
     default:
       return <SearchCockpit />;

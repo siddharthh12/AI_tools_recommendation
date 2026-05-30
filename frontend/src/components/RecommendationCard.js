@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import PriorityBadge from './PriorityBadge';
-import { RiFileList3Line, RiCheckLine } from 'react-icons/ri';
+import { RiFileList3Line, RiCheckLine, RiBrainLine } from 'react-icons/ri';
 
 export default function RecommendationCard({ recommendation }) {
   if (!recommendation) return null;
@@ -14,7 +14,8 @@ export default function RecommendationCard({ recommendation }) {
     priority, 
     impact, 
     insight, 
-    actions = [] 
+    actions = [],
+    isAiGenerated = false
   } = recommendation;
 
   // Track checked actions to provide interactive checklist toggles
@@ -29,14 +30,26 @@ export default function RecommendationCard({ recommendation }) {
   };
 
   return (
-    <div className="glass-panel p-6 rounded-2xl border border-gray-800 shadow-xl bg-gray-950/40 hover:border-gray-700/40 transition-all flex flex-col justify-between space-y-5">
+    <div className="glass-panel p-6 rounded-2xl border border-gray-800 shadow-xl bg-gray-950/40 hover:border-indigo-500/30 transition-all flex flex-col justify-between space-y-5">
       
       {/* Top Header Row */}
       <div className="space-y-3.5">
         <div className="flex items-center justify-between text-xs">
-          <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-bold border border-indigo-500/20 uppercase tracking-widest text-[9px]">
-            {category}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-bold border border-indigo-500/20 uppercase tracking-widest text-[9px]">
+              {category}
+            </span>
+            {isAiGenerated ? (
+              <span className="px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 text-[8px] font-bold border border-indigo-500/20 flex items-center space-x-0.5 animate-pulse">
+                <RiBrainLine className="h-2.5 w-2.5" />
+                <span>AI Enriched</span>
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded-full bg-gray-900 text-gray-500 text-[8px] font-bold border border-gray-800">
+                Rule-Based
+              </span>
+            )}
+          </div>
           <PriorityBadge priority={priority} />
         </div>
 
