@@ -60,7 +60,7 @@ app.use((req, res, next) => {
 app.use(errorHandler);
 
 // 4. LAUNCH ENGINE
-app.listen(config.PORT, () => {
+const server = app.listen(config.PORT, () => {
   console.log(`=================================================`);
   console.log(`  AI Discoverability Server is active!`);
   console.log(`  Environment : ${config.NODE_ENV}`);
@@ -68,5 +68,11 @@ app.listen(config.PORT, () => {
   console.log(`  Access URL  : http://localhost:${config.PORT}`);
   console.log(`=================================================`);
 });
+
+// Set server connection timeout to 4 minutes (240000 ms) to support longer crawler sessions
+server.timeout = 240000;
+// Reload triggered
+
+
 // Server triggered reload
 

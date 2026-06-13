@@ -1,8 +1,8 @@
 /**
  * Google Search Scraper Runner (Playwright Chromium)
  * 
- * Automates real Google search crawls in headful mode for visible debugging:
- * 1. Launches Playwright Chromium with headless: false and slowMo: 300.
+ * Automates real Google search crawls in headful/headless mode for visible debugging:
+ * 1. Launches Playwright Chromium with headless state toggled by SCRAPER_HEADLESS.
  * 2. Opens Google Search and inputs the query.
  * 3. Handles any cookie consent overlay automatically.
  * 4. Extracts organic results and Local Map Business Pack details (Name, Address, Website, Maps Link).
@@ -11,6 +11,18 @@
 
 const { chromium } = require('playwright');
 const logger = require('./searchLogger');
+
+// In-memory cache for search results
+// Maps query -> { timestamp: number, results: Array }
+const queryCache = new Map();
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Active search promise mapping for deduplication of parallel crawls of the same queries
+// Maps query -> Promise<Array>
+const activeSearchPromises = new Map();
+
+// Sequential queue for scraper executions to avoid concurrent browser launches
+let scraperQueue = Promise.resolve();
 
 /**
  * Runs a real Google Search crawl session for multiple queries sequentially using a SINGLE browser context.
@@ -23,18 +35,43 @@ const runGoogleSearches = async (queries) => {
     return [];
   }
 
-  logger.log('Browser', `Initializing unified Chromium browser session for ${queries.length} queries.`);
+  const uncachedQueries = [];
+  const cachedResults = [];
+
+  // 1. Resolve cached queries first to minimize scraping overhead
+  for (const query of queries) {
+    const cleanQuery = query.trim().toLowerCase();
+    if (queryCache.has(cleanQuery)) {
+      const cached = queryCache.get(cleanQuery);
+      if (Date.now() - cached.timestamp < CACHE_TTL) {
+        logger.log('Cache', `Returning cached results for query: "${query}"`);
+        cachedResults.push(...cached.results);
+        continue;
+      } else {
+        queryCache.delete(cleanQuery); // Expired cache entry
+      }
+    }
+    uncachedQueries.push(query);
+  }
+
+  // If all queries were successfully retrieved from cache, return them immediately
+  if (uncachedQueries.length === 0) {
+    return cachedResults;
+  }
+
+  logger.log('Browser', `Initializing Chromium browser session for ${uncachedQueries.length} query/queries (Resolved ${queries.length - uncachedQueries.length} queries from cache).`);
   logger.setBrowserStatus('launching');
 
+  const headless = process.env.SCRAPER_HEADLESS !== 'false';
   let browser = null;
   let context = null;
-  const allResults = [];
+  const newResults = [];
 
   try {
-    // Launch browser in headful mode with slowMo delay for visible debugging
+    // Launch browser in headless/headful mode with slowMo delay for visible debugging
     browser = await chromium.launch({
-      headless: false,
-      slowMo: 300
+      headless: headless,
+      slowMo: headless ? 0 : 150
     });
 
     context = await browser.newContext({
@@ -47,11 +84,11 @@ const runGoogleSearches = async (queries) => {
     const page = await context.newPage();
     page.setDefaultTimeout(45000); // 45s timeout limit per-query for robust handling
 
-    // Loop through the queries in the same browser session
-    for (let i = 0; i < queries.length; i++) {
-      const query = queries[i];
+    // Loop through the uncached queries in the same browser session
+    for (let i = 0; i < uncachedQueries.length; i++) {
+      const query = uncachedQueries[i];
       logger.setBrowserStatus('searching');
-      logger.log('Browser', `Crawling query (${i + 1}/${queries.length}): "${query}"`);
+      logger.log('Browser', `Crawling query (${i + 1}/${uncachedQueries.length}): "${query}"`);
 
       const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&hl=en`;
       logger.log('Browser', `Navigating to search URL: ${searchUrl}`);
@@ -82,6 +119,11 @@ const runGoogleSearches = async (queries) => {
                                 (await page.$('#captcha-form')) !== null;
       
       if (hasUnusualTraffic) {
+        if (headless) {
+          logger.log('Browser', 'CAPTCHA verification wall detected in headless mode! Aborting search query immediately.', 'error');
+          throw new Error('Google search blocked by CAPTCHA in headless mode.');
+        }
+
         logger.log('Browser', 'CAPTCHA verification wall detected! SCRAPER IS PAUSED.', 'warn');
         logger.log('Browser', 'Please switch to the open Chromium window and solve the CAPTCHA challenge manually.', 'warn');
         
@@ -128,7 +170,7 @@ const runGoogleSearches = async (queries) => {
       logger.log('Browser', `Parsing Google Search results page for query: "${query}"`);
 
       // Evaluate selectors on the page to collect real business items
-      const rawResults = await page.evaluate((queryStr) => {
+      const queryResults = await page.evaluate((queryStr) => {
         const results = [];
 
         // 1. Scrape Local Business Pack (Maps listings on Search results page)
@@ -225,19 +267,33 @@ const runGoogleSearches = async (queries) => {
         return results;
       }, query);
 
-      logger.incrementExtraction(rawResults.length);
-      logger.log('Browser', `Query "${query}" crawl complete. Found ${rawResults.length} raw listings.`);
-      allResults.push(...rawResults);
+      // Cache the result for this specific query
+      queryCache.set(query.trim().toLowerCase(), {
+        timestamp: Date.now(),
+        results: queryResults
+      });
+
+      logger.incrementExtraction(queryResults.length);
+      logger.log('Browser', `Query "${query}" crawl complete. Found ${queryResults.length} raw listings.`);
+      newResults.push(...queryResults);
+
+      // Early-exit check: If we have gathered enough raw listings across both cached and new results,
+      // stop the crawl loop early to save execution time and prevent Google blocks
+      const totalCollected = cachedResults.length + newResults.length;
+      if (totalCollected >= 15 && i < uncachedQueries.length - 1) {
+        logger.log('Browser', `Collected ${totalCollected} listings. Stopping search loop early to optimize execution.`);
+        break;
+      }
 
       // Add a standard organic human pause between consecutive searches in the same session
-      if (i < queries.length - 1) {
+      if (i < uncachedQueries.length - 1) {
         logger.log('Browser', 'Pausing to mimic natural human search delay...');
         await page.waitForTimeout(1500);
       }
     }
 
     logger.setBrowserStatus('closing');
-    return allResults;
+    return [...cachedResults, ...newResults];
 
   } catch (error) {
     logger.log('Browser', `Scrape session failed: ${error.message}`, 'error');
@@ -255,12 +311,56 @@ const runGoogleSearches = async (queries) => {
 };
 
 /**
- * Legacy compatibility wrapper running a single search query in a single browser context.
+ * Compatibility wrapper running a single search query in a single browser context.
+ * Utilizes a sequential execution queue and promise deduplication to prevent concurrent browser launches.
  * @param {string} query - Google search query string
  * @returns {Promise<Array<Object>>} Extracted search results
  */
 const runGoogleSearch = async (query) => {
-  return runGoogleSearches([query]);
+  const cleanQuery = query.trim().toLowerCase();
+
+  // 1. Check in-memory cache first
+  if (queryCache.has(cleanQuery)) {
+    const cached = queryCache.get(cleanQuery);
+    if (Date.now() - cached.timestamp < CACHE_TTL) {
+      logger.log('Cache', `Returning cached results for query: "${query}"`);
+      return cached.results;
+    } else {
+      queryCache.delete(cleanQuery);
+    }
+  }
+
+  // 2. Check for an active search promise for the exact same query (deduplication)
+  if (activeSearchPromises.has(cleanQuery)) {
+    logger.log('Cache', `Joining existing active search promise for query: "${query}"`);
+    return activeSearchPromises.get(cleanQuery);
+  }
+
+  // 3. Queue the scraper execution to prevent concurrent browser launches
+  const scrapeTask = (async () => {
+    // Wait for the previous queued search to finish
+    await scraperQueue;
+
+    // Check cache again in case a prior queue item resolved this query
+    if (queryCache.has(cleanQuery)) {
+      const cached = queryCache.get(cleanQuery);
+      if (Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.results;
+      }
+    }
+
+    try {
+      return await runGoogleSearches([query]);
+    } finally {
+      activeSearchPromises.delete(cleanQuery);
+    }
+  })();
+
+  // Chain the queue
+  scraperQueue = scrapeTask.catch(() => {});
+  activeSearchPromises.set(cleanQuery, scrapeTask);
+
+  return scrapeTask;
 };
 
 module.exports = {

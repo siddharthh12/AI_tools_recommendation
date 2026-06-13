@@ -9,7 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 120000 // 120s timeout limit since Playwright headful crawls search multiple queries sequentially
+  timeout: 240000 // 240s timeout limit since Playwright crawls search multiple queries sequentially
 });
 
 /**
@@ -44,9 +44,113 @@ const discoverCompetitors = async (searchCoords) => {
   }
 };
 
+/**
+ * Triggers and consumes the Server-Sent Events (SSE) competitor enrichment stream.
+ * @param {Array<Object>} competitors - Discovered competitors
+ * @param {string} sourceQuery - Trigger query
+ * @param {Function} onProgress - Progress updates callback
+ * @returns {Promise<Array<Object>>} Enriched results
+ */
+const enrichCompetitorsStream = async (competitors, sourceQuery, onProgress) => {
+  try {
+    const response = await fetch(`${API_URL}/api/competitors/enrich/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ competitors, sourceQuery }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || 'Failed to initialize competitor enrichment stream.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let finalResults = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const blocks = buffer.split('\n\n');
+      buffer = blocks.pop(); // Keep incomplete block in the buffer
+
+      for (const block of blocks) {
+        if (!block.trim()) continue;
+        const lines = block.split('\n');
+        let eventType = 'message';
+        let dataStr = '';
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            eventType = line.substring(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataStr = line.substring(5).trim();
+          }
+        }
+
+        if (dataStr) {
+          try {
+            const parsedData = JSON.parse(dataStr);
+            if (eventType === 'end') {
+              finalResults = parsedData.results || [];
+            } else {
+              onProgress(parsedData);
+            }
+          } catch (e) {
+            console.error('[SSE Parse Error]:', e);
+          }
+        }
+      }
+    }
+
+    return finalResults;
+
+  } catch (error) {
+    console.error('Competitor enrichment stream failed:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Fetches all saved competitor profiles.
+ * @returns {Promise<Object>} Profiles payload
+ */
+const getCompetitorProfiles = async () => {
+  try {
+    const response = await api.get('/competitors/profiles');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch competitor profiles:', error.message);
+    throw new Error(error.response?.data?.message || 'Failed to fetch competitor profiles.');
+  }
+};
+
+/**
+ * Fetches a single competitor profile by ID.
+ * @param {string} id - The profile ID
+ * @returns {Promise<Object>} Profile details payload
+ */
+const getCompetitorProfileById = async (id) => {
+  try {
+    const response = await api.get(`/competitors/profiles/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Failed to fetch competitor profile ${id}:`, error.message);
+    throw new Error(error.response?.data?.message || 'Failed to fetch competitor profile.');
+  }
+};
+
 const apiService = {
   checkBackendHealth,
-  discoverCompetitors
+  discoverCompetitors,
+  enrichCompetitorsStream,
+  getCompetitorProfiles,
+  getCompetitorProfileById
 };
 
 export default apiService;

@@ -15,7 +15,7 @@ export function DashboardProvider({ children }) {
   const [city, setCity] = useState('');
 
   // Scanning/Crawl statuses
-  const [status, setStatus] = useState('idle'); // idle | scanning | success | error
+  const [status, setStatus] = useState('idle'); // idle | scanning | enriching | success | error
   const [errorMsg, setErrorMsg] = useState('');
 
   // Results states
@@ -23,6 +23,11 @@ export function DashboardProvider({ children }) {
   const [queries, setQueries] = useState([]);
   const [logs, setLogs] = useState([]);
   const [browserStatus, setBrowserStatus] = useState('idle');
+
+  // Enrichment Specific States
+  const [enrichmentProgress, setEnrichmentProgress] = useState({ current: 0, total: 0, competitor: '', statusText: '' });
+  const [enrichmentDetails, setEnrichmentDetails] = useState({ rating: null, reviewCount: null, websiteFound: false, socialsFound: [], failures: [] });
+  const [enrichmentLogs, setEnrichmentLogs] = useState([]);
 
   // Search Audit History Recalls (Prefilled with realistic gym startup coordinates)
   const [searchHistory, setSearchHistory] = useState([
@@ -63,7 +68,7 @@ export function DashboardProvider({ children }) {
     }
   };
 
-  // Triggers unified Playwright competitor search scan
+  // Triggers unified Playwright competitor search scan and sequential enrichment
   const triggerAuditScan = async (searchCoords) => {
     const { business, category: cat, city: ct } = searchCoords;
     if (!business || !cat || !ct) return;
@@ -79,6 +84,9 @@ export function DashboardProvider({ children }) {
     setQueries([]);
     setLogs([]);
     setBrowserStatus('launching');
+    setEnrichmentProgress({ current: 0, total: 0, competitor: '', statusText: '' });
+    setEnrichmentDetails({ rating: null, reviewCount: null, websiteFound: false, socialsFound: [], failures: [] });
+    setEnrichmentLogs([]);
 
     try {
       console.log(`[Dashboard Context] Dispatching discovery search coordinate scan...`);
@@ -89,13 +97,54 @@ export function DashboardProvider({ children }) {
       });
 
       if (response.success) {
-        setCompetitors(response.competitors);
         setQueries(response.queries);
         if (response.debug) {
           setLogs(response.debug.logs || []);
           setBrowserStatus(response.debug.browserStatus || 'done');
         }
+
+        const discoveredList = response.competitors || [];
+        if (discoveredList.length === 0) {
+          setCompetitors([]);
+          setStatus('success');
+          setActiveSection('competitors');
+          return;
+        }
+
+        // Switch automatically to competitor intelligence enrichment phase
+        setStatus('enriching');
+        setEnrichmentProgress({
+          current: 0,
+          total: discoveredList.length,
+          competitor: 'Initializing Enrichment Engine...',
+          statusText: 'starting'
+        });
+
+        const sourceQuery = response.queries[0] || `Google Search: ${cat} in ${ct}`;
         
+        console.log(`[Dashboard Context] Starting enrichment streaming for ${discoveredList.length} competitors...`);
+        const enrichedResults = await apiService.enrichCompetitorsStream(
+          discoveredList,
+          sourceQuery,
+          (progressData) => {
+            if (progressData.progress) {
+              setEnrichmentProgress({
+                current: progressData.progress.current,
+                total: progressData.progress.total,
+                competitor: progressData.currentCompetitor || '',
+                statusText: progressData.status || ''
+              });
+            }
+            if (progressData.details) {
+              setEnrichmentDetails(progressData.details);
+            }
+            if (progressData.logs) {
+              setEnrichmentLogs(progressData.logs);
+            }
+          }
+        );
+
+        setCompetitors(enrichedResults);
         setStatus('success');
         
         // Switch viewport focus automatically to Competitors Results tab
@@ -120,7 +169,7 @@ export function DashboardProvider({ children }) {
     } catch (err) {
       console.error('[DashboardState Provider Error]:', err.message);
       setErrorMsg(
-        err.message || 'Competitor discovery failed. Please ensure the backend server is running on port 5000.'
+        err.message || 'Competitor discovery or enrichment failed. Please ensure the backend server is running on port 5000.'
       );
       setStatus('error');
     }
@@ -136,6 +185,9 @@ export function DashboardProvider({ children }) {
     setCategory('');
     setCity('');
     setActiveSection('home');
+    setEnrichmentProgress({ current: 0, total: 0, competitor: '', statusText: '' });
+    setEnrichmentDetails({ rating: null, reviewCount: null, websiteFound: false, socialsFound: [], failures: [] });
+    setEnrichmentLogs([]);
   };
 
   return (
@@ -157,6 +209,9 @@ export function DashboardProvider({ children }) {
         queries,
         logs,
         browserStatus,
+        enrichmentProgress,
+        enrichmentDetails,
+        enrichmentLogs,
         searchHistory,
         isSidebarCollapsed,
         setIsSidebarCollapsed,

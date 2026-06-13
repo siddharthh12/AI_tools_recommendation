@@ -16,7 +16,7 @@ export default function Dashboard() {
   } = useDashboard();
 
   // 1. Loading scanner active screen
-  if (status === 'scanning') {
+  if (status === 'scanning' || status === 'enriching') {
     return <LoadingSkeleton />;
   }
 

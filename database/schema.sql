@@ -89,3 +89,26 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_users_modtime BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_businesses_modtime BEFORE UPDATE ON businesses FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 CREATE TRIGGER update_competitors_modtime BEFORE UPDATE ON competitors FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+-- 6. COMPETITOR PROFILES TABLE
+-- Stores enriched competitor profiles from Playwright crawlers.
+CREATE TABLE IF NOT EXISTS competitor_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100),
+    rating NUMERIC(3,2),
+    review_count INT,
+    website VARCHAR(255),
+    description TEXT,
+    address TEXT,
+    phone VARCHAR(50),
+    google_maps_link TEXT,
+    social_links JSONB DEFAULT '{}'::jsonb,
+    source_query VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_competitor_profiles_name ON competitor_profiles(name);
+
+CREATE TRIGGER update_competitor_profiles_modtime BEFORE UPDATE ON competitor_profiles FOR EACH ROW EXECUTE PROCEDURE update_modified_column();

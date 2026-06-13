@@ -1,4 +1,6 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const { runGoogleSearches } = require('../search/googleSearchRunner');
+
 const logger = require('../search/searchLogger');
 
 async function testSession() {

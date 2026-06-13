@@ -25,13 +25,28 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+*.log
+**/*.log
 
-# Playwright reports
+# Playwright reports and caches
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+**/playwright-profile-*/
+playwright-profile-*/
+**/playwright-profile*
 
-# System files
+# Application local databases & caches
+backend/data/*.json
+**/data/*.json
+
+# Developer scratch spaces & temp scripts
+**/scratch/
+scratch/
+
+# IDE / System files
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/

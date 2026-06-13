@@ -1,0 +1,27 @@
+{
+  "watch": [
+    "ai",
+    "competitor-analysis",
+    "config",
+    "controllers",
+    "enrichment",
+    "middleware",
+    "playwright",
+    "recommendations",
+    "routes",
+    "scoring",
+    "search",
+    "services",
+    "utils",
+    "server.js",
+    ".env"
+  ],
+  "ext": "js,mjs,cjs,env",
+  "ignore": [
+    "**/data/**",
+    "**/playwright-profile*/**",
+    "**/node_modules/**",
+    "**/scratch/**",
+    "**/*.json"
+  ]
+}
