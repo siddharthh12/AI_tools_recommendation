@@ -29,6 +29,11 @@ export function DashboardProvider({ children }) {
   const [enrichmentDetails, setEnrichmentDetails] = useState({ rating: null, reviewCount: null, websiteFound: false, socialsFound: [], failures: [] });
   const [enrichmentLogs, setEnrichmentLogs] = useState([]);
 
+  // AI Visibility States
+  const [visibilityStatus, setVisibilityStatus] = useState('idle'); // idle | running | success | error
+  const [visibilityData, setVisibilityData] = useState(null);
+  const [visibilityLogs, setVisibilityLogs] = useState([]);
+
   // Search Audit History Recalls (Prefilled with realistic gym startup coordinates)
   const [searchHistory, setSearchHistory] = useState([
     { business: "Be Strong Gym", category: "Gym", city: "Vikhroli, Mumbai" }
@@ -175,6 +180,38 @@ export function DashboardProvider({ children }) {
     }
   };
 
+  const triggerVisibilityCheck = async () => {
+    if (!businessName || !category || !city) return;
+    
+    setVisibilityStatus('running');
+    setVisibilityData(null);
+    setVisibilityLogs([]);
+
+    try {
+      console.log(`[Dashboard Context] Dispatching AI Visibility Analysis scan...`);
+      const compNames = competitors.map(c => c.name);
+      
+      const response = await apiService.runAIVisibility({
+        brand: businessName,
+        category: category,
+        location: city,
+        competitors: compNames
+      });
+
+      if (response.success) {
+        setVisibilityData(response);
+        setVisibilityLogs(response.debug?.logs || []);
+        setVisibilityStatus('success');
+      } else {
+        throw new Error(response.message || 'AI Visibility Engine failed to return results.');
+      }
+    } catch (err) {
+      console.error('[DashboardState Provider Error - Visibility]:', err.message);
+      setVisibilityStatus('error');
+      setErrorMsg(err.message || 'AI Visibility audit execution failed.');
+    }
+  };
+
   // Resets search targets and active view panels
   const clearAuditScan = () => {
     setStatus('idle');
@@ -188,6 +225,9 @@ export function DashboardProvider({ children }) {
     setEnrichmentProgress({ current: 0, total: 0, competitor: '', statusText: '' });
     setEnrichmentDetails({ rating: null, reviewCount: null, websiteFound: false, socialsFound: [], failures: [] });
     setEnrichmentLogs([]);
+    setVisibilityStatus('idle');
+    setVisibilityData(null);
+    setVisibilityLogs([]);
   };
 
   return (
@@ -218,7 +258,12 @@ export function DashboardProvider({ children }) {
         theme,
         toggleTheme,
         triggerAuditScan,
-        clearAuditScan
+        clearAuditScan,
+        visibilityStatus,
+        setVisibilityStatus,
+        visibilityData,
+        visibilityLogs,
+        triggerVisibilityCheck
       }}
     >
       {children}

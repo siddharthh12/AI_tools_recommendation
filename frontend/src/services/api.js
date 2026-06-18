@@ -145,12 +145,28 @@ const getCompetitorProfileById = async (id) => {
   }
 };
 
+/**
+ * Executes Perplexity AI visibility analysis.
+ * @param {Object} coords - Brand, category, location, and optional competitors
+ * @returns {Promise<Object>} The queries, visibility breakdown, and debug logs
+ */
+const runAIVisibility = async (coords) => {
+  try {
+    const response = await api.post('/ai-visibility/run', coords);
+    return response.data;
+  } catch (error) {
+    console.error('AI visibility analysis scan failed:', error.response?.data || error.message);
+    throw new Error(error.response?.data?.message || 'Failed to complete AI visibility analysis.');
+  }
+};
+
 const apiService = {
   checkBackendHealth,
   discoverCompetitors,
   enrichCompetitorsStream,
   getCompetitorProfiles,
-  getCompetitorProfileById
+  getCompetitorProfileById,
+  runAIVisibility
 };
 
 export default apiService;

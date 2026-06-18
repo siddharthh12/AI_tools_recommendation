@@ -4,6 +4,7 @@ import React from 'react';
 import { useDashboard } from '../../context/DashboardContext';
 import SearchCockpit from '../../components/dashboard/SearchCockpit';
 import CompetitorView from '../../components/competitors/CompetitorView';
+import AIVisibilityView from '../../components/dashboard/AIVisibilityView';
 import LoadingSkeleton from '../../components/ui/LoadingSkeleton';
 import { ShieldAlert, X } from 'lucide-react';
 
@@ -58,6 +59,10 @@ export default function Dashboard() {
     case 'competitors':
       if (status !== 'success') return <SearchCockpit />;
       return <CompetitorView />;
+
+    case 'visibility':
+      if (status !== 'success') return <SearchCockpit />;
+      return <AIVisibilityView />;
       
     default:
       return <SearchCockpit />;

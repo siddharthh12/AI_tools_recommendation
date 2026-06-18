@@ -112,3 +112,19 @@ CREATE TABLE IF NOT EXISTS competitor_profiles (
 CREATE INDEX IF NOT EXISTS idx_competitor_profiles_name ON competitor_profiles(name);
 
 CREATE TRIGGER update_competitor_profiles_modtime BEFORE UPDATE ON competitor_profiles FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+
+-- 7. AI VISIBILITY RESULTS TABLE
+-- Stores individual search results query-by-query for Generative Engine Optimization audits.
+CREATE TABLE IF NOT EXISTS ai_visibility_results (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_name VARCHAR(255) NOT NULL,
+    query VARCHAR(255) NOT NULL,
+    mentioned BOOLEAN NOT NULL DEFAULT FALSE,
+    position INT, -- NULL if not mentioned
+    response_text TEXT,
+    source_links JSONB DEFAULT '[]'::jsonb,
+    visibility_score INT CHECK (visibility_score >= 0 AND visibility_score <= 100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_visibility_results_business ON ai_visibility_results(business_name);

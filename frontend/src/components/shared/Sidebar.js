@@ -24,7 +24,8 @@ export default function Sidebar() {
   // Navigation Items Catalog - Paused other tabs to focus entirely on Real Competitor discovery
   const navItems = [
     { id: 'home', label: 'Crawl Cockpit', icon: Compass },
-    { id: 'competitors', label: 'Real Competitors', icon: Users, requiresReport: true }
+    { id: 'competitors', label: 'Real Competitors', icon: Users, requiresReport: true },
+    { id: 'visibility', label: 'AI Visibility', icon: Radio, requiresReport: true }
   ];
 
   const hasActiveReport = status === 'success';
