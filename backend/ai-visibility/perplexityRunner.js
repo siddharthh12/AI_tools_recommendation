@@ -67,8 +67,8 @@ async function runQueryOnPerplexity(query, logCallback = console.log) {
   logCallback(`[Playwright]: Launching new tab for query: "${query}"`);
   const page = await context.newPage();
   
-  // Set default timeout to 25 seconds for slow network/loading states
-  page.setDefaultTimeout(25000);
+  // Set default timeout to 5 seconds for fast fallback if blocked
+  page.setDefaultTimeout(5000);
 
   try {
     logCallback('[Playwright]: Navigating to perplexity.ai...');
@@ -77,7 +77,7 @@ async function runQueryOnPerplexity(query, logCallback = console.log) {
     // Wait for text input area
     logCallback('[Playwright]: Locating search textarea...');
     const textareaSelector = 'textarea[placeholder*="Ask"], textarea[placeholder*="anything"], textarea';
-    await page.waitForSelector(textareaSelector, { timeout: 8000 });
+    await page.waitForSelector(textareaSelector, { timeout: 3000 });
     
     logCallback(`[Playwright]: Typing search query...`);
     await page.focus(textareaSelector);
@@ -89,7 +89,7 @@ async function runQueryOnPerplexity(query, logCallback = console.log) {
     logCallback('[Playwright]: Awaiting streaming response...');
     // Perplexity answer container is typically rendered with a class like .prose or .markdown
     const proseSelector = '.prose, [class*="prose"], [class*="Answer"], .markdown';
-    await page.waitForSelector(proseSelector, { timeout: 10000 });
+    await page.waitForSelector(proseSelector, { timeout: 3000 });
     
     // Wait for text generation stream to stabilize (length checks)
     let responseText = '';
@@ -328,7 +328,7 @@ These business spots are widely praised for their professional standards and hig
  * Core entry point for executing Perplexity searches.
  */
 async function runPerplexity(query, targetBusiness, category, city, competitors = [], logCallback = console.log) {
-  const maxRetries = 2;
+  const maxRetries = 1;
   let attempt = 0;
   
   while (attempt < maxRetries) {

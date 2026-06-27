@@ -76,6 +76,7 @@ const saveVisibilityResults = async (results) => {
   const records = results.map(r => ({
     business_name: r.business_name,
     query: r.query,
+    platform: r.platform || 'perplexity',
     mentioned: !!r.mentioned,
     position: r.position !== undefined && r.position !== null ? parseInt(r.position, 10) : null,
     response_text: r.response_text || '',

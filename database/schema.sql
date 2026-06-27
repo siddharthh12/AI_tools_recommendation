@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS ai_visibility_results (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     business_name VARCHAR(255) NOT NULL,
     query VARCHAR(255) NOT NULL,
+    platform VARCHAR(50) NOT NULL DEFAULT 'perplexity',
     mentioned BOOLEAN NOT NULL DEFAULT FALSE,
     position INT, -- NULL if not mentioned
     response_text TEXT,

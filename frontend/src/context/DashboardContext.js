@@ -1,13 +1,43 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import apiService from '../services/api';
 
 const DashboardContext = createContext();
 
 export function DashboardProvider({ children }) {
-  // Navigation active tab: 'home' | 'competitors'
-  const [activeSection, setActiveSection] = useState('home');
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Authentication states
+  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(null);
+
+  // Sync auth state and handle login redirection
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('auth-token');
+      const storedUser = localStorage.getItem('auth-user');
+      
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (e) {
+          setUser(null);
+        }
+      } else {
+        // Redirect to login if user tries to access dashboard paths without credentials
+        if (pathname && pathname.startsWith('/dashboard')) {
+          router.push('/login');
+        }
+      }
+    }
+  }, [pathname, router]);
+
+  // Navigation active tab: 'dashboard' | 'home' | 'competitors'
+  const [activeSection, setActiveSection] = useState('dashboard');
 
   // Active search coordinates
   const [businessName, setBusinessName] = useState('');
@@ -230,6 +260,18 @@ export function DashboardProvider({ children }) {
     setVisibilityLogs([]);
   };
 
+  // Sign out user and remove JWT credentials from cache
+  const logoutUser = () => {
+    setToken(null);
+    setUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth-token');
+      localStorage.removeItem('auth-user');
+    }
+    clearAuditScan();
+    router.push('/login');
+  };
+
   return (
     <DashboardContext.Provider
       value={{
@@ -263,7 +305,14 @@ export function DashboardProvider({ children }) {
         setVisibilityStatus,
         visibilityData,
         visibilityLogs,
-        triggerVisibilityCheck
+        triggerVisibilityCheck,
+        
+        // Auth state and actions
+        token,
+        setToken,
+        user,
+        setUser,
+        logoutUser
       }}
     >
       {children}

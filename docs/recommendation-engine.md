@@ -1,151 +1,111 @@
-# AI Discoverability Platform - Recommendation Engine Handbook
+# AI Improvement Recommendation Engine - Technical Specifications
 
-Welcome to the technical handbook for the **Phase 5 Recommendation Engine**. This document explains the internal modular architecture, rule thresholds, priority mapping logic, action blueprint dictionaries, and future LLM integration strategies for generating business-friendly, actionable optimization playbooks.
-
----
-
-## 1. Design Philosophy: From Analytics to Action
-
-An analytics platform that merely highlights scores leaves users feeling overwhelmed. The core mission of the **Recommendation Engine** is to answer:
-> *"What concrete, sequential tasks must I execute today to get AI engines to recommend my business tomorrow?"*
-
-### Architecture Constraints & Guidelines
-1. **Rule-Based & Explainable**: No complex LLM or black-box neural networks are used yet. Calculations and detections are fully deterministic and based on clear, transparent heuristics.
-2. **Business-Oriented Language**: Technical indicators (e.g., *low website Domain Authority score*) are translated into plain-English business consequences (*"AI models cannot verify your business location authority because your backlink signals are weak"*).
-3. **Structured & Checklist-Driven**: Every recommendation produces a step-by-step checklist with interactive checkbox items (e.g., generating FAQ JSON-LD schemas, setting up Google reviews QR codes, engaging on Reddit) to maximize user engagement.
+This documentation details the architecture, prompt design, caching layers, and database structures of the **AI Improvement Recommendation Engine (Phase 10)**.
 
 ---
 
-## 2. Modular Sub-Systems & Pipeline Topology
+## 1. Architectural Design
 
-The engine runs a sequential processing pipeline to scan a brand's metrics profile, identify weaknesses, map them to central solutions, and order the resulting playbook by urgency.
+The engine follows a modular, decoupled pipeline architecture where data passes through sequential parsing, scoring, caching, and lifecycle-mapping layers before entering the frontend:
 
 ```mermaid
 graph TD
-    A[Target Business Metrics Profile] --> B[Weakness Detector]
-    B -->|Flagged Weaknesses & Severity| C[Recommendation Priority Mapper]
-    C -->|Prioritized Anomalies| D[Recommendation Mapper]
-    D -->|Match Rules Dictionary| E[Action Checklist Generator]
-    E -->|Map Actions Blueprint| F[Insight Formatter]
-    F -->|Translate Technical Terms| G[Master Recommendations Orchestrator]
-    G -->|Sorted Scorecard JSON Payload| H[Frontend Recommendation Cards]
+    A[Scrape Scan Finished] --> B[Save in VisibilityHistory]
+    B --> C[GET /api/suggestions]
+    C --> D{Cache Check: scanId matched?}
+    D -- Yes --> E[Return Cached Recommendation JSON]
+    D -- No --> F[Enrich Brand SEO & FAQ Stats]
+    F --> G[Calculate Competitor Averages]
+    G --> H[Construct Context Prompt]
+    H --> I{Check GROQ_API_KEY}
+    I -- Active --> J[Invoke Groq API llama-3.3-70b]
+    I -- Missing/Invalid --> K[Run Deterministic Rule-Based Fallback]
+    J --> L[Parse Response JSON]
+    K --> L
+    L --> M[Validate & Default Properties]
+    M --> N[Order by Priority]
+    N --> O[Plan Quick Wins vs. Long Term]
+    O --> P[Map Life-cycle Status: Completed, Pending, New]
+    P --> Q[Save in MongoDB Collection: recommendations]
+    Q --> R[Return Structured Suggestions JSON]
 ```
 
-### Pipeline Sequence
-1. **`weaknessDetector.js`**: Sweeps brand metrics against strict heuristic thresholds. Flags severity as `HIGH` (critical) or `MEDIUM` (moderate).
-2. **`recommendationRules.js`**: Provides the structural templates, problem statements, and base solutions for each weakness category.
-3. **`recommendationPriority.js`**: Translates detector severity ratings into sorting weights (`HIGH` priority maps first).
-4. **`actionGenerator.js`**: Attaches a checklist of 3 distinct, practical, step-by-step optimization tasks for each category.
-5. **`insightFormatter.js`**: Translates technical values and thresholds into non-technical, highly explainable customer statements.
-6. **`recommendationMapper.js`**: Combines all pieces into unified advisory blocks.
-7. **`recommendationEngine.js`**: Orchestrates the loop, filters out inactive categories, and delivers a sorted list of recommendations.
+### Module Breakdown (`backend/ai-recommendations/`)
+
+1. **`groqClient.js`**: Thin wrapper around the OpenAI-compatible Axios connection to issue chat completions targeting `llama-3.3-70b-versatile`.
+2. **`promptBuilder.js`**: Gathers all quantitative metrics for both the target business and competitor profiles and serializes them into a clean markdown structure.
+3. **`responseParser.js`**: Cleans up formatting anomalies (such as markdown wraps) and parses the raw text into JSON.
+4. **`priorityCalculator.js`**: Enforces strict sorting priorities: High -> Medium -> Low.
+5. **`recommendationValidator.js`**: Validates the presence of mandatory properties, applying realistic defaults if fields are empty.
+6. **`improvementPlanner.js`**: Dynamically groups tasks into Quick Wins vs. High-Impact initiatives.
+7. **`recommendationEngine.js`**: Orchestrates prompt building, completion calls, parsing, validation, and holds the rule-based fallback generator.
+8. **`recommendationService.js`**: Connects the controller to the database layer, checking the caching registry, retrieving past scan trends, and performing history tag comparisons.
 
 ---
 
-## 3. Heuristic Thresholds & Weakness Rules
+## 2. Prompt Engineering Design
 
-The `weaknessDetector.js` module evaluates 7 key brand signals against defined bounds:
+To minimize AI hallucination and keep recommendations aligned strictly to factual business statistics, the system utilizes a **Structured Context Injection** strategy.
 
-| Metric Parameter | Critical Bound (HIGH Severity) | Moderate Bound (MEDIUM Severity) | Monitored Weakness Category |
-| :--- | :--- | :--- | :--- |
-| **AI Citations/Mentions** | `< 1` query mention | `< 2` query mentions | `LOW_MENTIONS` |
-| **AI Recommendation Rank** | Average Position `> 3.5` | Average Position `> 2.0` | `POOR_RANKING` |
-| **Star Rating** | Star rating `< 4.2` | Star rating `< 4.5` | `LOW_RATING` |
-| **Reviews Volume** | `< 300` reviews | `< 900` reviews | `FEW_REVIEWS` |
-| **Schema FAQs** | `0` FAQ structured pages | `< 6` FAQs or no FAQ schema | `MISSING_FAQ` |
-| **Website Authority** | Domain Authority (DA) `< 40` | Domain Authority (DA) `< 50` | `WEAK_AUTHORITY` |
-| **Reddit Discussion Citations** | `< 5` social citations | `< 15` social citations | `WEAK_COMMUNITY_SIGNALS` |
+### Context Composition
+Instead of a simple prompt, a markdown payload is constructed representing:
+- **Core profiles**: Business name, category, and city.
+- **Visibility scores**: Overall indexes and ChatGPT, Gemini, and Perplexity breakdowns.
+- **Review signals**: Business rating and reviews count vs. competitor averages.
+- **Authority signals**: Domain authority, keyword presence, and SSL availability.
+- **Content FAQ structures**: FAQ page presence, FAQ count vs. competitor average, and schema markers.
+- **Community citations**: Organic Reddit mention rates.
+- **Historical scans**: Dynamic list of previous scan dates and overall visibility values.
 
----
-
-## 4. Playbook Dictionaries & Action Blueprints
-
-When a weakness is flagged, the engine maps it to standard optimization solutions and draws concrete action items from our checklist blueprint database:
-
-### A. AI Visibility (`LOW_MENTIONS` / `POOR_RANKING`)
-*   **Problem Statement**: Brand has low visibility or ranks deep in AI recommendations.
-*   **Fix Action**: Boost search discoverability via high-authority indexing.
-*   **Action Checklist**:
-    1. Submit your business profiles to premium high-authority local business citations (Yelp, TripAdvisor, Google Maps, Bing Places).
-    2. Audit search keyword alignments in your website's main headers (H1, H2) and title tags.
-    3. Monitor Perplexity search recommendations weekly to track ranking index changes.
-
-### B. Customer Reviews (`LOW_RATING` / `FEW_REVIEWS`)
-*   **Problem Statement**: Competitors carry higher review credibility signals.
-*   **Fix Action**: Expand local review velocity and customer satisfaction ratings.
-*   **Action Checklist**:
-    1. Print custom table tents or stickers with QR codes linking customers directly to your Google Maps review form.
-    2. Set up automated post-service customer emails or SMS campaigns requesting honest feedback.
-    3. Respond to all existing negative and neutral reviews within 24 hours to signal customer care.
-
-### C. Website SEO Authority (`WEAK_AUTHORITY`)
-*   **Problem Statement**: Search engines find it difficult to crawl and trust your core website.
-*   **Fix Action**: Enhance technical domain authority index and backlink profiles.
-*   **Action Checklist**:
-    1. Establish backlink collaborations by partnering with local business associations and popular city blogs.
-    2. Ensure full SSL security setup across all domain routes (redirect all HTTP pages to HTTPS).
-    3. Optimize page speed and mobile responsiveness metrics to maximize search index ranking scores.
-
-### D. Structural FAQs (`MISSING_FAQ`)
-*   **Problem Statement**: Lack of question-answer structures makes it hard for LLMs to scrape direct answers.
-*   **Fix Action**: Inject FAQ schemas into your website to seed AI citation platforms.
-*   **Action Checklist**:
-    1. Create a dedicated `/faqs` help center answering top customer pricing and amenity questions.
-    2. Generate and embed clean `FAQPage` JSON-LD schema headers inside your website's root index.
-    3. Register and submit your updated sitemap.xml directly to Google Search Console.
-
-### E. Social / Community Signals (`WEAK_COMMUNITY_SIGNALS`)
-*   **Problem Statement**: Lack of mentions across organic forums like Reddit and Quora.
-*   **Fix Action**: Expand organic community citations in regional forums.
-*   **Action Checklist**:
-    1. Monitor popular local and category subreddits daily for recommendation requests.
-    2. Participate naturally in forum discussions without spamming promotional outbound links.
-    3. Pitch to boutique local lifestyle guides and niche review subreddits to generate organic recommendations.
+### Prompt System Directives
+The system instructions enforce:
+- **Role Definition**: Act as an AI Discoverability Consultant.
+- **Factual Grounding**: Rely strictly on the injected context. Never invent competitor details.
+- **Zero Sponsored Actions**: Do not suggest paid ads (e.g. Google Ads). Focus entirely on organic discovery.
+- **Technical Translation**: Explain metric gaps in plain business consequences.
+- **Strict Schema Enforcement**: Require valid JSON conforming to the structural parameters.
 
 ---
 
-## 5. UI Presentation & Interactive State Model
+## 3. Caching Strategy
 
-To offer a premium, modern experience, the frontend includes standard visual optimizations:
-- **Tailored Badges**: Priorities are marked using HSL colors (`HIGH` is crimson rose, `MEDIUM` is warm amber, `LOW` is cool emerald).
-- **Interactive Checkbox State**: In `RecommendationCard.js`, we initialize local state:
-  ```javascript
-  const [checkedStates, setCheckedStates] = useState(
-    new Array(actions.length).fill(false)
-  );
-  ```
-  This allows users to click items inside the checklist, dynamically triggering line-through strikethroughs on completed tasks without requiring immediate database read/write roundtrips.
+To minimize API cost and guarantee performance, a double-caching layer is registered:
+1. **Scope Caching**: When a user retrieves suggestions, the service checks if a recommendations record already exists associated with the user's latest `scanId` in the `recommendations` collection. If the scan ID matches, it returns the cached record immediately, saving API token resources.
+2. **Deterministic Fallback**: If `GROQ_API_KEY` is not present, or if the API endpoint stalls or triggers rate limits, the orchestrator automatically activates a rule-based fallback calculation, ensuring the Suggestions page is 100% operational with data-driven recommendations.
 
 ---
 
-## 6. Scaling to AI-Generated Recommendations (Phase 6 Preview)
+## 4. Database Schema Structure
 
-The engine's JSON output format is specifically designed to support effortless future LLM scaling.
+The recommendation results are stored in the Mongoose `recommendations` collection:
 
-```json
-{
-  "success": true,
-  "business": "Gold's Gym",
-  "recommendations": [
-    {
-      "category": "Reviews",
-      "problem": "Few Reviews",
-      "recommendation": "Boost Google Review count",
-      "priority": "HIGH",
-      "impact": "Improves local search authority and AI citation rate.",
-      "insight": "Your business only has 240 reviews. Competitors average 920. AI crawlers favor locations with high review volume.",
-      "actions": [
-        "Create stickers with Google review QR codes.",
-        "Launch an automated post-service email campaign.",
-        "Respond to all reviews to increase engagement."
-      ]
-    }
-  ]
-}
-```
+| Field Name | Type | Description |
+| :--- | :--- | :--- |
+| `userId` | `ObjectId` | Reference to the owner's `User` profile. |
+| `businessName` | `String` | Core target business name. |
+| `scanId` | `ObjectId` | Reference to the scan log in `VisibilityHistory`. |
+| `summary` | `String` | Textual description of visibility strengths/weaknesses. |
+| `overallHealth` | `String` | Level indicator (`Poor`, `Fair`, `Good`, `Excellent`). |
+| `recommendations` | `Array` | Complete playbook recommendations containing problem, reason, priority, impact, time, and status. |
+| `roadmap` | `Array` | Dynamic 6-week checklist timeline. |
+| `quickWins` | `Array` | Easy, low-effort optimization recommendations. |
+| `longTermImprovements`| `Array` | High-impact, strategic optimizations. |
+| `competitorComparison`| `Array` | Stars ratings comparing reviews, website quality, and visibility. |
+| `expectedImprovements`| `Object` | Progression of ChatGPT, Gemini, and Perplexity visibility scores. |
+| `generatedDate` | `Date` | Timestamp of when the playbook was generated. |
 
-### Transitioning to Live LLMs in Phase 6:
-To transition from rule-based scoring to AI-generated insights, we can modify the controller handler (`backend/controllers/recommendationController.js`):
-1. **Remove Heuristic Dictionaries**: Retain the `weaknessDetector.js` to identify precisely where the brand is lacking.
-2. **Inject OpenAI API Prompt**: Send the flagged weaknesses, current metrics, and competitor scores to OpenAI's Chat Completions API with a highly structured system prompt.
-3. **Dynamic Response Validation**: Instruct the model to return the exact JSON schema defined above, producing highly customized, creative optimization playbooks tailored specifically to the target brand's niche and location.
+---
+
+## 5. Life-Cycle State Comparison
+
+To track improvement progression over time (Step 11), a status mapping algorithm compares new playbooks against previously saved recommendations:
+- **`New`**: A recommendation is labeled `New` if the problem was not present in the last recommendations scan.
+- **`Pending`**: A recommendation is labeled `Pending` if it continues to be generated in the latest scan (meaning the business has not yet corrected the underlying deficiency).
+- **`Completed`**: A recommendation is labeled `Completed` if it was present in the last scan but is no longer generated (meaning the business successfully corrected the deficiency!).
+
+---
+
+## 6. Limitations & Future Improvements
+
+- **Local Execution Timeouts**: Scoring and scraper execution cycles can take up to 20-30 seconds depending on scraper speed. Future cycles can benefit from background jobs/WebSockets.
+- **API Scalability**: In production environments, Groq calls can be wrapped in queue managers to handle high concurrency rates and mitigate rate limits.

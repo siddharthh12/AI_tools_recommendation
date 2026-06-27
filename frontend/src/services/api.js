@@ -9,8 +9,25 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 240000 // 240s timeout limit since Playwright crawls search multiple queries sequentially
+  timeout: 360000 // 360s (6 minutes) timeout limit since Playwright crawls search multiple queries sequentially
 });
+
+// Automatically inject JWT authorization token from localStorage in request headers
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('auth-token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 
 /**
  * Validates the connection with Express backend health endpoint.
@@ -166,7 +183,77 @@ const apiService = {
   enrichCompetitorsStream,
   getCompetitorProfiles,
   getCompetitorProfileById,
-  runAIVisibility
+  runAIVisibility,
+  
+  // Authentication
+  login: async (credentials) => {
+    try {
+      const response = await api.post('/auth/login', credentials);
+      return response.data;
+    } catch (error) {
+      console.error('Login request failed:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to authenticate user credentials.');
+    }
+  },
+  signup: async (details) => {
+    try {
+      const response = await api.post('/auth/signup', details);
+      return response.data;
+    } catch (error) {
+      console.error('Signup request failed:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to register user.');
+    }
+  },
+  
+  // Dashboard
+  getDashboardSummary: async () => {
+    try {
+      const response = await api.get('/dashboard');
+      return response.data;
+    } catch (error) {
+      console.error('Failed to retrieve dashboard summary metrics:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to fetch dashboard summary.');
+    }
+  },
+  getDashboardHistory: async () => {
+    try {
+      const response = await api.get('/dashboard/history');
+      return response.data;
+    } catch (error) {
+      console.error('Failed to retrieve dashboard history logs:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to fetch scan history.');
+    }
+  },
+  getDashboardTrends: async (period) => {
+    try {
+      const response = await api.get(`/dashboard/trends?period=${period}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to retrieve dashboard trends metrics:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to fetch visibility trends.');
+    }
+  },
+  
+  // Suggestions
+  getSuggestions: async () => {
+    try {
+      const response = await api.get('/suggestions');
+      return response.data;
+    } catch (error) {
+      console.error('Failed to retrieve suggestions metrics:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to fetch suggestions.');
+    }
+  },
+  getSuggestionsHistory: async () => {
+    try {
+      const response = await api.get('/suggestions/history');
+      return response.data;
+    } catch (error) {
+      console.error('Failed to retrieve suggestions history logs:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Failed to fetch suggestions history.');
+    }
+  }
 };
 
 export default apiService;
+

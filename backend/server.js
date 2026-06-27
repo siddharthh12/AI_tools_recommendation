@@ -7,6 +7,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const mongoose = require('mongoose');
 const config = require('./config');
 const logger = require('./middleware/logger');
 const errorHandler = require('./middleware/errorHandler');
@@ -15,6 +16,16 @@ const queryRoutes = require('./routes/queryRoutes');
 const scoreRoutes = require('./routes/scoreRoutes');
 const competitorRoutes = require('./routes/competitorRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
+const authRoutes = require('./routes/authRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
+const suggestionsRoutes = require('./routes/suggestionsRoutes');
+
+// MongoDB / Mongoose connection setup
+console.log(`[MongoDB]: Connecting to URI: ${config.MONGO_URI}`);
+mongoose.connect(config.MONGO_URI)
+  .then(() => console.log('[MongoDB]: Client successfully connected to MongoDB.'))
+  .catch(err => console.error('[MongoDB Critical Error]: Connection to MongoDB failed:', err.message));
+
 
 const app = express();
 
@@ -35,10 +46,16 @@ app.use(logger);
 
 // 2. REGISTER ROUTES
 app.use('/api', apiRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/suggestions', suggestionsRoutes);
 app.use('/api/query', queryRoutes);
 app.use('/api/score', scoreRoutes);
 app.use('/api/competitors', competitorRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+
+
+
 
 
 
@@ -69,8 +86,8 @@ const server = app.listen(config.PORT, () => {
   console.log(`=================================================`);
 });
 
-// Set server connection timeout to 4 minutes (240000 ms) to support longer crawler sessions
-server.timeout = 240000;
+// Set server connection timeout to 6 minutes (360000 ms) to support longer crawler sessions
+server.timeout = 360000;
 // Reload triggered
 
 

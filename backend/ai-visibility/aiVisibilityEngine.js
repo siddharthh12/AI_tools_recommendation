@@ -13,11 +13,7 @@
  */
 
 const { generateQueries } = require('./queryGenerator');
-const { runPerplexity, closeBrowserSession } = require('./perplexityRunner');
-const { extractResponse } = require('./responseExtractor');
-const { detectMentions } = require('./mentionDetector');
-const { calculateVisibility } = require('./visibilityCalculator');
-const { saveVisibilityResults } = require('./aiVisibilityStorage');
+const { runMultiPlatformAudit } = require('./multiPlatformEngine');
 const { getAllEnrichedProfiles } = require('../services/competitorProfileService');
 const { generateMockCompetitors } = require('../services/mockCompetitorData');
 
@@ -144,84 +140,42 @@ async function runAiVisibilityEngine({ brand, category, location, competitors = 
     const queries = generateQueries(category, location);
     localLogger(`[Engine]: Generated ${queries.length} check queries: ${JSON.stringify(queries)}`);
 
-    const queryDetectionResults = [];
-    const individualRecords = [];
-
-    // 3. Crawl queries sequentially to reuse browser session
-    for (let i = 0; i < queries.length; i++) {
-      const query = queries[i];
-      localLogger(`[Engine]: Processing query ${i + 1}/${queries.length}: "${query}"`);
-
-      try {
-        const rawResult = await runPerplexity(
-          query,
-          brand,
-          category,
-          location,
-          uniqueCompetitors, // pass unique list to the crawler fallback simulator
-          (msg, type) => localLogger(msg, type)
-        );
-
-        const extracted = extractResponse(rawResult);
-        const detections = detectMentions(extracted.response, allBusinesses, aliasesMap);
-        
-        queryDetectionResults.push(detections);
-
-        // Find target brand detection details
-        const targetDetection = detections.find(d => d.name.toLowerCase() === brand.toLowerCase()) || { mentioned: false, position: null };
-
-        individualRecords.push({
-          business_name: brand,
-          query: query,
-          mentioned: targetDetection.mentioned,
-          position: targetDetection.position,
-          response_text: extracted.response,
-          source_links: extracted.sources,
-          detections: detections, // Include full detections array in response log
-          visibility_score: 0 
-        });
-
-      } catch (queryErr) {
-        localLogger(`[Engine Error]: Query "${query}" crawl failed: ${queryErr.message}. Skipping...`, 'error');
-      }
-    }
-
-    // Close the Playwright session when finished with all queries
-    await closeBrowserSession();
-
-    // 4. Calculate overall visibility metrics
-    localLogger('[Engine]: Summarizing visibility stats...');
-    const visibilityStats = calculateVisibility(queryDetectionResults, queries.length);
-
-    // Get the target business score to store in individual records
-    const targetBrandStats = visibilityStats.find(s => s.name.toLowerCase() === brand.toLowerCase()) || { visibility: 0 };
-    const finalScore = targetBrandStats.visibility;
-
-    individualRecords.forEach(rec => {
-      rec.visibility_score = finalScore;
+    // 3. Delegate execution to multi-platform engine
+    const auditResult = await runMultiPlatformAudit({
+      brand,
+      category,
+      location,
+      uniqueCompetitors,
+      allBusinesses,
+      aliasesMap,
+      queries
+    }, (msg, type) => {
+      // Stream logs back to parent process / controller
+      logCallback(msg, type);
+      
+      // Keep local session logs updated
+      sessionLogs.push({
+        timestamp: new Date().toISOString(),
+        component: 'AiVisibilityEngine',
+        type,
+        message: msg
+      });
     });
 
-    // 5. Save individual search results to database
-    localLogger(`[Engine]: Persisting results to database...`);
-    await saveVisibilityResults(individualRecords);
-
-    localLogger('[Engine]: AI visibility audit process complete.');
-
-    return {
-      success: true,
-      queries,
-      visibility: visibilityStats,
-      queriesData: individualRecords, // Expose query run responses and detections to frontend
-      debug: {
-        logs: sessionLogs
-      }
-    };
+    if (auditResult.success) {
+      localLogger('[Engine]: AI visibility audit process complete.');
+      return {
+        ...auditResult,
+        debug: {
+          logs: sessionLogs
+        }
+      };
+    } else {
+      throw new Error(auditResult.message || 'Multi-platform AI audit execution failed.');
+    }
 
   } catch (err) {
     localLogger(`[Engine Critical Error]: Orchestration pipeline crashed: ${err.message}`, 'error');
-    try {
-      await closeBrowserSession();
-    } catch (e) {}
     
     return {
       success: false,
