@@ -62,7 +62,7 @@ const runGoogleSearches = async (queries) => {
   logger.log('Browser', `Initializing Chromium browser session for ${uncachedQueries.length} query/queries (Resolved ${queries.length - uncachedQueries.length} queries from cache).`);
   logger.setBrowserStatus('launching');
 
-  const headless = process.env.SCRAPER_HEADLESS !== 'false';
+  const headless = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.SCRAPER_HEADLESS !== 'false';
   let browser = null;
   let context = null;
   const newResults = [];

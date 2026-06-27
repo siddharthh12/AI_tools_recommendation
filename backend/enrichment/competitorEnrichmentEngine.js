@@ -41,7 +41,7 @@ async function enrichCompetitors(competitors, sourceQuery, logger, onProgressUpd
     logger.log('EnrichmentEngine', 'Launching Chromium browser for enrichment session...');
     if (onProgressUpdate) onProgressUpdate(logger.getPayload());
     
-    const headless = process.env.SCRAPER_HEADLESS !== 'false';
+    const headless = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.SCRAPER_HEADLESS !== 'false';
     browser = await chromium.launch({
       headless: headless,
       slowMo: headless ? 0 : 100,

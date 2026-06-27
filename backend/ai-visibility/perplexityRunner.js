@@ -22,7 +22,7 @@ let sharedContext = null;
 async function getBrowserSession() {
   if (!sharedBrowser) {
     console.log('[Perplexity Runner]: Creating a new shared browser session...');
-    const headless = process.env.NODE_ENV === 'production' || process.env.SCRAPER_HEADLESS !== 'false';
+    const headless = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.SCRAPER_HEADLESS !== 'false';
     sharedBrowser = await chromium.launch({
       headless: headless,
       slowMo: 60,
