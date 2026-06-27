@@ -52,17 +52,22 @@ async function runPerplexity(query, targetBusiness, category, city) {
   const userDataDir = path.join(os.tmpdir(), `playwright-profile-${uniqueId}`);
   
   try {
-    // Launch Chromium in headed mode with a unique temporary profile context
+    // Launch Chromium in headless mode with a unique temporary profile context
     console.log(`[Google Scraper]: Launching Chromium with unique profile: ${uniqueId}`);
     context = await chromium.launchPersistentContext(userDataDir, {
-      headless: false,
+      headless: true,
       slowMo: 60, // Slight slow down to look human-like
       viewport: { width: 1280, height: 800 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage"
+      ]
     });
     
     const page = context.pages()[0] || await context.newPage();
-    page.setDefaultTimeout(8000); // 8 seconds default timeout
+    page.setDefaultTimeout(30000); // 30 seconds default timeout
     
     // Navigate directly to Google Search using 'commit' for ultra-fast performance
     const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&hl=en`;
@@ -86,7 +91,7 @@ async function runPerplexity(query, targetBusiness, category, city) {
     
     // Wait for the main search results block or any h3 to load
     console.log('[Google Scraper]: Awaiting search results elements...');
-    await page.waitForSelector('div#search, div#rcnt, h3', { timeout: 8005 });
+    await page.waitForSelector('div#search, div#rcnt, h3', { timeout: 30000 });
     
     // Parse Google Local Maps 3-Pack and Organic listings
     console.log('[Google Scraper]: Parsing business elements from search result layout...');

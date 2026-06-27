@@ -22,12 +22,16 @@ let sharedContext = null;
 async function getBrowserSession() {
   if (!sharedBrowser) {
     console.log('[ChatGPT Runner]: Creating a new shared browser session...');
+    const headless = process.env.NODE_ENV === 'production' || process.env.SCRAPER_HEADLESS !== 'false';
     sharedBrowser = await chromium.launch({
-      headless: false, // Visual debugging is required
+      headless: headless,
       slowMo: 60,
       args: [
         '--disable-blink-features=AutomationControlled',
-        '--start-maximized'
+        '--start-maximized',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage'
       ]
     });
     

@@ -71,7 +71,12 @@ const runGoogleSearches = async (queries) => {
     // Launch browser in headless/headful mode with slowMo delay for visible debugging
     browser = await chromium.launch({
       headless: headless,
-      slowMo: headless ? 0 : 150
+      slowMo: headless ? 0 : 150,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage"
+      ]
     });
 
     context = await browser.newContext({

@@ -44,7 +44,12 @@ async function enrichCompetitors(competitors, sourceQuery, logger, onProgressUpd
     const headless = process.env.SCRAPER_HEADLESS !== 'false';
     browser = await chromium.launch({
       headless: headless,
-      slowMo: headless ? 0 : 100
+      slowMo: headless ? 0 : 100,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage"
+      ]
     });
 
     context = await browser.newContext({
