@@ -1,9 +1,5 @@
-/**
- * AI Discoverability Platform Backend Server
- * 
- * Sets up Express framework, hooks up middleware libraries (CORS, JSON Parser, Logger),
- * registers the API router, and starts the server listening on the designated PORT.
- */
+const path = require('path');
+process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(__dirname, 'ms-playwright');
 
 const express = require('express');
 const cors = require('cors');
