@@ -16,7 +16,7 @@ const authRoutes = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const suggestionsRoutes = require('./routes/suggestionsRoutes');
 
-// MongoDB / Mongoose connection setup
+// MongoDB / Mongoose connection setup (Configured with local IPv4 URI)
 console.log(`[MongoDB]: Connecting to URI: ${config.MONGO_URI}`);
 mongoose.connect(config.MONGO_URI)
   .then(() => console.log('[MongoDB]: Client successfully connected to MongoDB.'))

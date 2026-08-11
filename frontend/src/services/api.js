@@ -28,6 +28,28 @@ api.interceptors.request.use(
   }
 );
 
+// Automatically handle unauthorized (401) responses by clearing token and redirecting to login
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth-token');
+        localStorage.removeItem('auth-user');
+        
+        // Redirect to login page if not already on an auth page to prevent infinite redirects
+        const path = window.location.pathname;
+        if (path && !path.startsWith('/login') && !path.startsWith('/signup')) {
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 
 /**
  * Validates the connection with Express backend health endpoint.

@@ -10,7 +10,8 @@ import {
   User, 
   ChevronRight,
   Sparkles,
-  Terminal
+  Terminal,
+  Plus
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -21,7 +22,8 @@ export default function Navbar() {
     searchHistory,
     triggerAuditScan,
     status,
-    businessName
+    businessName,
+    clearAuditScan
   } = useDashboard();
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -61,6 +63,16 @@ export default function Navbar() {
 
       {/* 2. Top-Right Utilities */}
       <div className="flex items-center space-x-4">
+
+        {/* New Scan Button */}
+        <button
+          onClick={clearAuditScan}
+          className="px-3.5 py-2 rounded-xl border border-transparent bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black flex items-center space-x-1.5 cursor-pointer shadow-md shadow-indigo-500/10 hover:shadow-indigo-500/15 transition-all"
+          title="Start a new search crawl"
+        >
+          <Plus className="h-4 w-4" />
+          <span>New Scan</span>
+        </button>
         
         {/* Recents Searches recalls Dropdown */}
         {searchHistory && searchHistory.length > 0 && (

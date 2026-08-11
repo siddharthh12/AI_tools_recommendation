@@ -31,7 +31,7 @@ export default function SearchCockpit() {
   const handleLocalSubmit = (e) => {
     e.preventDefault();
     if (!bName || !cat || !ct || isScanning) return;
-    triggerAuditScan({ business: bName, category: cat, city: ct });
+    triggerAuditScan({ business: bName, category: cat, city: ct }, true);
   };
 
   const categoriesList = [
